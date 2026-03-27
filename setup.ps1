@@ -9,16 +9,14 @@
 $ErrorActionPreference = "Stop"
 $REPO_BASE_URL = "https://raw.githubusercontent.com/tammo2701/windows-install-script/main"
 
+# Auto-Elevation: UAC-Prompt wenn nicht als Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator
 )
 if (-not $isAdmin) {
-    Write-Host ""
-    Write-Host "  FEHLER: Bitte PowerShell als Administrator starten!" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "  Druecke eine Taste zum Beenden..." -ForegroundColor DarkGray
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    exit 1
+    $cmd = "irm https://raw.githubusercontent.com/tammo2701/windows-install-script/main/setup.ps1 | iex"
+    Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`""
+    exit 0
 }
 
 function Initialize-Setup {
@@ -45,8 +43,7 @@ function Initialize-Setup {
                 Write-Host "  FEHLER: Konnte $mod nicht laden." -ForegroundColor Red
                 Write-Host "  URL: $url" -ForegroundColor DarkGray
                 Write-Host ""
-                Write-Host "  Druecke eine Taste zum Beenden..." -ForegroundColor DarkGray
-                $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                pause
                 exit 1
             }
         }
@@ -57,8 +54,8 @@ function Initialize-Setup {
 
 Initialize-Setup
 
-. "$script:ScriptDir\modules\ui.ps1"
 . "$script:ScriptDir\modules\packages.ps1"
 . "$script:ScriptDir\modules\install.ps1"
+. "$script:ScriptDir\modules\ui.ps1"
 
 Start-MainMenu

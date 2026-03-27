@@ -1,108 +1,96 @@
 # modules/install.ps1
 # Installations-Logik, Exit-Code-Behandlung und Zusammenfassung
 
-# winget Exit Codes
-# 0              = Erfolg
-# -1978335189    = Bereits installiert (APPINSTALLER_ERROR_ALREADY_INSTALLED)
-# -1978335153    = Kein passendes Paket gefunden
 $script:EXITCODE_ALREADY_INSTALLED = -1978335189
 $script:EXITCODE_NOT_FOUND         = -1978335153
 
-# ──────────────────────────────────────────────
-#  Einzelpaket installieren
-# ──────────────────────────────────────────────
 function Install-Package {
     param(
         [string]$Name,
-        [string]$Id
+        [string]$Id,
+        [string]$Source = "winget"
     )
 
-    Write-Step "Installiere $Name  ($Id)"
+    $args = @(
+        "install",
+        "--id", $Id,
+        "--source", $Source,
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements"
+    )
 
-    winget install `
-        --id $Id `
-        --silent `
-        --accept-package-agreements `
-        --accept-source-agreements `
-        2>&1 | Out-Null
-
+    winget @args 2>&1 | Out-Null
     $ec = $LASTEXITCODE
+
     if ($ec -eq 0) {
-        Write-Success "$Name installiert"
         return "ok"
     } elseif ($ec -eq $script:EXITCODE_ALREADY_INSTALLED) {
-        Write-Dim "$Name bereits installiert"
         return "skipped"
     } elseif ($ec -eq $script:EXITCODE_NOT_FOUND) {
-        Write-Err "$Name nicht gefunden (ID: $Id)"
         return "error"
     } else {
-        Write-Err "$Name fehlgeschlagen (Exit: $ec)"
         return "error"
     }
 }
 
-# ──────────────────────────────────────────────
-#  Batch-Installation + Live-Fortschritt
-# ──────────────────────────────────────────────
 function Start-Installation {
     param(
-        [array]$Packages
+        [array]$Packages,
+        [System.Windows.Forms.RichTextBox]$LogBox,
+        [System.Windows.Forms.ProgressBar]$ProgressBar,
+        [System.Windows.Forms.Label]$StatusLabel
     )
 
     $results = @{ ok = @(); skipped = @(); error = @() }
     $total   = $Packages.Count
     $current = 0
 
-    Write-Host ""
-    Write-Host "  ─────────────────────────────────────" -ForegroundColor DarkGray
-    Write-Info "Starte Installation ($total Pakete)..."
-    Write-Host "  ─────────────────────────────────────" -ForegroundColor DarkGray
-    Write-Host ""
-
     foreach ($pkg in $Packages) {
         $current++
-        Write-Host ("  [{0}/{1}]" -f $current, $total) -ForegroundColor DarkGray
-        Write-Host ""
+        $pct = [int](($current / $total) * 100)
 
-        $status = Install-Package -Name $pkg.Name -Id $pkg.Id
-        $results[$status] += $pkg.Name
-        Write-Host ""
-    }
-
-    Show-Summary -Results $results
-}
-
-# ──────────────────────────────────────────────
-#  Zusammenfassung nach der Installation
-# ──────────────────────────────────────────────
-function Show-Summary {
-    param([hashtable]$Results)
-
-    Write-Host "  =============================================" -ForegroundColor Cyan
-    Write-Host "  Zusammenfassung" -ForegroundColor Cyan
-    Write-Host "  =============================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    Write-Host ("  OK  Installiert:       {0}" -f $Results.ok.Count)      -ForegroundColor Green
-    Write-Host ("       Bereits vorhanden: {0}" -f $Results.skipped.Count) -ForegroundColor DarkGray
-    if ($Results.error.Count -gt 0) {
-        Write-Host ("  XX  Fehlgeschlagen:    {0}" -f $Results.error.Count) -ForegroundColor Red
-    } else {
-        Write-Host ("       Fehlgeschlagen:   0") -ForegroundColor DarkGray
-    }
-
-    if ($Results.error.Count -gt 0) {
-        Write-Host ""
-        Write-Host "  Fehlgeschlagene Pakete:" -ForegroundColor Red
-        foreach ($name in $Results.error) {
-            Write-Dim "     $name"
+        if ($ProgressBar)  { $ProgressBar.Value = $pct }
+        if ($StatusLabel)  { $StatusLabel.Text = "[$current/$total]  Installiere $($pkg.Name)..." }
+        if ($LogBox)       {
+            $LogBox.SelectionColor = [System.Drawing.Color]::FromArgb(180,180,180)
+            $LogBox.AppendText(">> Installiere $($pkg.Name)...`n")
+            $LogBox.ScrollToCaret()
         }
-        Write-Host ""
-        Write-Dim "Tipp: Manuell pruefen mit  winget search <name>"
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $status = Install-Package -Name $pkg.Name -Id $pkg.Id -Source $pkg.Source
+        $results[$status] += $pkg.Name
+
+        if ($LogBox) {
+            switch ($status) {
+                "ok"      {
+                    $LogBox.SelectionColor = [System.Drawing.Color]::FromArgb(100,220,100)
+                    $LogBox.AppendText("   [OK]  $($pkg.Name) installiert`n")
+                }
+                "skipped" {
+                    $LogBox.SelectionColor = [System.Drawing.Color]::FromArgb(130,130,130)
+                    $LogBox.AppendText("   [--]  $($pkg.Name) bereits installiert`n")
+                }
+                "error"   {
+                    $LogBox.SelectionColor = [System.Drawing.Color]::FromArgb(220,80,80)
+                    $LogBox.AppendText("   [!!]  $($pkg.Name) fehlgeschlagen`n")
+                }
+            }
+            $LogBox.ScrollToCaret()
+            [System.Windows.Forms.Application]::DoEvents()
+        }
     }
 
-    Write-Host ""
-    Write-Host "  =============================================" -ForegroundColor Cyan
-    Write-Host ""
+    if ($ProgressBar) { $ProgressBar.Value = 100 }
+    if ($StatusLabel) {
+        $StatusLabel.Text = "Fertig!   OK: $($results.ok.Count)   Übersprungen: $($results.skipped.Count)   Fehler: $($results.error.Count)"
+    }
+    if ($LogBox) {
+        $LogBox.SelectionColor = [System.Drawing.Color]::FromArgb(100,180,255)
+        $LogBox.AppendText("`n=== Fertig! OK: $($results.ok.Count)  Uebersprungen: $($results.skipped.Count)  Fehler: $($results.error.Count) ===`n")
+        $LogBox.ScrollToCaret()
+    }
+
+    return $results
 }
