@@ -1,19 +1,35 @@
-#Requires -RunAsAdministrator
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Windows Setup Script - Automatische Programm-Installation via winget
 .DESCRIPTION
     Kategorienbasierte Installation. Kann direkt via irm | iex aus GitHub ausgefuehrt werden.
 .EXAMPLE
-    irm https://raw.githubusercontent.com/USERNAME/windows-setup/main/setup.ps1 | iex
+    irm https://raw.githubusercontent.com/tammo2701/windows-install-script/main/setup.ps1 | iex
 #>
 
 $ErrorActionPreference = "Stop"
-$REPO_BASE_URL = "https://raw.githubusercontent.com/USERNAME/windows-setup/main"
+$REPO_BASE_URL = "https://raw.githubusercontent.com/tammo2701/windows-install-script/main"
+
+# ──────────────────────────────────────────────
+#  Admin-Check (manuell, damit Fehlermeldung
+#  sichtbar bleibt statt silent crash)
+# ──────────────────────────────────────────────
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator
+)
+if (-not $isAdmin) {
+    Write-Host ""
+    Write-Host "  FEHLER: Bitte PowerShell als Administrator starten!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Druecke eine Taste zum Beenden..." -ForegroundColor DarkGray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    exit 1
+}
 
 # ──────────────────────────────────────────────
 #  Bootstrap: Wenn via irm | iex ausgefuehrt,
-#  haben wir kein $PSScriptRoot → Module laden
+#  haben wir kein $PSScriptRoot -> Module laden
 # ──────────────────────────────────────────────
 function Initialize-Setup {
     $script:ScriptDir = $PSScriptRoot
@@ -21,7 +37,7 @@ function Initialize-Setup {
     if (-not $script:ScriptDir) {
         Write-Host "  Lade Module herunter..." -ForegroundColor DarkGray
 
-        $TempDir = Join-Path $env:TEMP "windows-setup"
+        $TempDir = Join-Path $env:TEMP "windows-install-script"
         $ModDir  = Join-Path $TempDir "modules"
 
         New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
@@ -34,7 +50,12 @@ function Initialize-Setup {
             try {
                 Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
             } catch {
-                Write-Host "  FEHLER: Konnte $mod nicht laden. Pruefe die URL/Verbindung." -ForegroundColor Red
+                Write-Host ""
+                Write-Host "  FEHLER: Konnte $mod nicht laden." -ForegroundColor Red
+                Write-Host "  URL: $url" -ForegroundColor DarkGray
+                Write-Host ""
+                Write-Host "  Druecke eine Taste zum Beenden..." -ForegroundColor DarkGray
+                $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
                 exit 1
             }
         }

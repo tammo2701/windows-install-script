@@ -5,9 +5,8 @@
 # 0              = Erfolg
 # -1978335189    = Bereits installiert (APPINSTALLER_ERROR_ALREADY_INSTALLED)
 # -1978335153    = Kein passendes Paket gefunden
-# -1978335135    = Paket erfordert manuellen Eingriff
-$EXITCODE_ALREADY_INSTALLED = -1978335189
-$EXITCODE_NOT_FOUND         = -1978335153
+$script:EXITCODE_ALREADY_INSTALLED = -1978335189
+$script:EXITCODE_NOT_FOUND         = -1978335153
 
 # ──────────────────────────────────────────────
 #  Einzelpaket installieren
@@ -27,11 +26,19 @@ function Install-Package {
         --accept-source-agreements `
         2>&1 | Out-Null
 
-    switch ($LASTEXITCODE) {
-        0                       { Write-Success "$Name installiert";          return "ok"       }
-        $EXITCODE_ALREADY_INSTALLED { Write-Dim    "$Name bereits installiert"; return "skipped"  }
-        $EXITCODE_NOT_FOUND     { Write-Err    "$Name nicht gefunden (ID: $Id)"; return "error"  }
-        default                 { Write-Err    "$Name fehlgeschlagen (Exit: $LASTEXITCODE)"; return "error" }
+    $ec = $LASTEXITCODE
+    if ($ec -eq 0) {
+        Write-Success "$Name installiert"
+        return "ok"
+    } elseif ($ec -eq $script:EXITCODE_ALREADY_INSTALLED) {
+        Write-Dim "$Name bereits installiert"
+        return "skipped"
+    } elseif ($ec -eq $script:EXITCODE_NOT_FOUND) {
+        Write-Err "$Name nicht gefunden (ID: $Id)"
+        return "error"
+    } else {
+        Write-Err "$Name fehlgeschlagen (Exit: $ec)"
+        return "error"
     }
 }
 
@@ -55,7 +62,7 @@ function Start-Installation {
 
     foreach ($pkg in $Packages) {
         $current++
-        Write-Host ("  [{0}/{1}]" -f $current, $total) -ForegroundColor DarkGray -NoNewline
+        Write-Host ("  [{0}/{1}]" -f $current, $total) -ForegroundColor DarkGray
         Write-Host ""
 
         $status = Install-Package -Name $pkg.Name -Id $pkg.Id
@@ -72,16 +79,18 @@ function Start-Installation {
 function Show-Summary {
     param([hashtable]$Results)
 
-    Write-Host "  ═════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "  =============================================" -ForegroundColor Cyan
     Write-Host "  Zusammenfassung" -ForegroundColor Cyan
-    Write-Host "  ═════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "  =============================================" -ForegroundColor Cyan
     Write-Host ""
 
-    Write-Host ("  ✔  Installiert:      {0}" -f $Results.ok.Count)      -ForegroundColor Green
-    Write-Host ("  ●  Bereits vorhanden: {0}" -f $Results.skipped.Count) -ForegroundColor DarkGray
-    Write-Host ("  ✘  Fehlgeschlagen:   {0}" -f $Results.error.Count)   -ForegroundColor $(
-        if ($Results.error.Count -gt 0) { "Red" } else { "DarkGray" }
-    )
+    Write-Host ("  OK  Installiert:       {0}" -f $Results.ok.Count)      -ForegroundColor Green
+    Write-Host ("       Bereits vorhanden: {0}" -f $Results.skipped.Count) -ForegroundColor DarkGray
+    if ($Results.error.Count -gt 0) {
+        Write-Host ("  XX  Fehlgeschlagen:    {0}" -f $Results.error.Count) -ForegroundColor Red
+    } else {
+        Write-Host ("       Fehlgeschlagen:   0") -ForegroundColor DarkGray
+    }
 
     if ($Results.error.Count -gt 0) {
         Write-Host ""
@@ -94,6 +103,6 @@ function Show-Summary {
     }
 
     Write-Host ""
-    Write-Host "  ═════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "  =============================================" -ForegroundColor Cyan
     Write-Host ""
 }
