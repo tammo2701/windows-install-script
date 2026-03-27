@@ -7,7 +7,7 @@ Automatische Programm-Installation via winget – kategorienbasiert, direkt aus 
 PowerShell als **Administrator** öffnen, dann:
 
 ```powershell
-irm https://raw.githubusercontent.com/USERNAME/windows-setup/main/setup.ps1 | iex
+irm https://raw.githubusercontent.com/tammo2701/windows-install-script/main/setup.ps1 | iex
 ```
 
 > Falls Skriptausführung blockiert ist, einmalig vorab ausführen:
