@@ -2,8 +2,6 @@
 <#
 .SYNOPSIS
     Windows Setup Script - Automatische Programm-Installation via winget
-.DESCRIPTION
-    Kategorienbasierte Installation. Kann direkt via irm | iex aus GitHub ausgefuehrt werden.
 .EXAMPLE
     irm https://raw.githubusercontent.com/tammo2701/windows-install-script/main/setup.ps1 | iex
 #>
@@ -11,10 +9,6 @@
 $ErrorActionPreference = "Stop"
 $REPO_BASE_URL = "https://raw.githubusercontent.com/tammo2701/windows-install-script/main"
 
-# ──────────────────────────────────────────────
-#  Admin-Check (manuell, damit Fehlermeldung
-#  sichtbar bleibt statt silent crash)
-# ──────────────────────────────────────────────
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator
 )
@@ -27,10 +21,6 @@ if (-not $isAdmin) {
     exit 1
 }
 
-# ──────────────────────────────────────────────
-#  Bootstrap: Wenn via irm | iex ausgefuehrt,
-#  haben wir kein $PSScriptRoot -> Module laden
-# ──────────────────────────────────────────────
 function Initialize-Setup {
     $script:ScriptDir = $PSScriptRoot
 
@@ -48,7 +38,8 @@ function Initialize-Setup {
             $url  = "$REPO_BASE_URL/modules/$mod"
             $dest = Join-Path $ModDir $mod
             try {
-                Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+                $content = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+                [System.IO.File]::WriteAllText($dest, $content, [System.Text.Encoding]::UTF8)
             } catch {
                 Write-Host ""
                 Write-Host "  FEHLER: Konnte $mod nicht laden." -ForegroundColor Red
@@ -64,9 +55,6 @@ function Initialize-Setup {
     }
 }
 
-# ──────────────────────────────────────────────
-#  Module laden & Hauptmenue starten
-# ──────────────────────────────────────────────
 Initialize-Setup
 
 . "$script:ScriptDir\modules\ui.ps1"

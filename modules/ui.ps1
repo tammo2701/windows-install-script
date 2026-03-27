@@ -1,9 +1,6 @@
 # modules/ui.ps1
 # Alle Ausgabe-Funktionen und das Hauptmenue
 
-# ──────────────────────────────────────────────
-#  Output-Helfer
-# ──────────────────────────────────────────────
 function Write-Banner {
     Clear-Host
     Write-Host ""
@@ -20,9 +17,6 @@ function Write-Info    { param($msg) Write-Host "  [**]  $msg" -ForegroundColor 
 function Write-Step    { param($msg) Write-Host "  [>>]  $msg" -ForegroundColor Yellow  }
 function Write-Dim     { param($msg) Write-Host "        $msg" -ForegroundColor DarkGray }
 
-# ──────────────────────────────────────────────
-#  Kategorie-Auswahl anzeigen
-# ──────────────────────────────────────────────
 function Show-CategoryMenu {
     Write-Host "  Kategorien:" -ForegroundColor White
     Write-Host ""
@@ -31,9 +25,7 @@ function Show-CategoryMenu {
     foreach ($cat in $script:Categories.GetEnumerator() | Sort-Object { $_.Value.Order }) {
         $label   = $cat.Value.Label
         $preview = $cat.Value.Preview
-
-        Write-Host ("  [{0}]  {1}" -f $i, $label) -ForegroundColor White -NoNewline
-        Write-Host ("   -   {0}" -f $preview) -ForegroundColor DarkGray
+        Write-Host ("  [{0}]  {1}   -   {2}" -f $i, $label, $preview) -ForegroundColor White
         $i++
     }
 
@@ -43,11 +35,7 @@ function Show-CategoryMenu {
     Write-Host ""
 }
 
-# ──────────────────────────────────────────────
-#  Hauptmenue + Input-Loop
-# ──────────────────────────────────────────────
 function Start-MainMenu {
-    # winget-Pruefung
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Banner
         Write-Err "winget nicht gefunden!"
@@ -71,7 +59,6 @@ function Start-MainMenu {
             exit 0
         }
 
-        # Kategorien aus Eingabe ermitteln
         $catList  = $script:Categories.GetEnumerator() | Sort-Object { $_.Value.Order }
         $catKeys  = @($catList | ForEach-Object { $_.Key })
         $selected = @()
@@ -97,7 +84,6 @@ function Start-MainMenu {
             continue
         }
 
-        # Ausgewaehlte Kategorien + Pakete anzeigen
         Write-Banner
         Write-Host "  Folgende Programme werden installiert:" -ForegroundColor White
         Write-Host ""
