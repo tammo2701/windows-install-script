@@ -7,18 +7,18 @@
 function Write-Banner {
     Clear-Host
     Write-Host ""
-    Write-Host "  ╔══════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "  ║          Windows Setup  //  by USERNAME          ║" -ForegroundColor Cyan
-    Write-Host "  ║       Automatische Installation via winget       ║" -ForegroundColor Cyan
-    Write-Host "  ╚══════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host "  +==================================================+" -ForegroundColor Cyan
+    Write-Host "  |       Windows Setup  //  by tammo2701            |" -ForegroundColor Cyan
+    Write-Host "  |    Automatische Installation via winget           |" -ForegroundColor Cyan
+    Write-Host "  +==================================================+" -ForegroundColor Cyan
     Write-Host ""
 }
 
-function Write-Success  { param($msg) Write-Host "  ✔  $msg" -ForegroundColor Green   }
-function Write-Err      { param($msg) Write-Host "  ✘  $msg" -ForegroundColor Red     }
-function Write-Info     { param($msg) Write-Host "  ●  $msg" -ForegroundColor Cyan    }
-function Write-Step     { param($msg) Write-Host "  →  $msg" -ForegroundColor Yellow  }
-function Write-Dim      { param($msg) Write-Host "     $msg" -ForegroundColor DarkGray }
+function Write-Success { param($msg) Write-Host "  [OK]  $msg" -ForegroundColor Green   }
+function Write-Err     { param($msg) Write-Host "  [!!]  $msg" -ForegroundColor Red     }
+function Write-Info    { param($msg) Write-Host "  [**]  $msg" -ForegroundColor Cyan    }
+function Write-Step    { param($msg) Write-Host "  [>>]  $msg" -ForegroundColor Yellow  }
+function Write-Dim     { param($msg) Write-Host "        $msg" -ForegroundColor DarkGray }
 
 # ──────────────────────────────────────────────
 #  Kategorie-Auswahl anzeigen
@@ -29,12 +29,11 @@ function Show-CategoryMenu {
 
     $i = 1
     foreach ($cat in $script:Categories.GetEnumerator() | Sort-Object { $_.Value.Order }) {
-        $icon    = $cat.Value.Icon
         $label   = $cat.Value.Label
         $preview = $cat.Value.Preview
 
-        Write-Host ("  [{0}]  {1}  {2}" -f $i, $icon, $label) -ForegroundColor White -NoNewline
-        Write-Host ("  –  {0}" -f $preview) -ForegroundColor DarkGray
+        Write-Host ("  [{0}]  {1}" -f $i, $label) -ForegroundColor White -NoNewline
+        Write-Host ("   -   {0}" -f $preview) -ForegroundColor DarkGray
         $i++
     }
 
@@ -62,10 +61,10 @@ function Start-MainMenu {
         Write-Banner
         Show-CategoryMenu
 
-        $input = Read-Host "  Auswahl (z.B. '1 3' oder 'all')"
-        $input = $input.Trim().ToLower()
+        $userInput = Read-Host "  Auswahl (z.B. '1 3' oder 'all')"
+        $userInput = $userInput.Trim().ToLower()
 
-        if ($input -eq "0" -or $input -eq "q" -or $input -eq "exit") {
+        if ($userInput -eq "0" -or $userInput -eq "q" -or $userInput -eq "exit") {
             Write-Host ""
             Write-Info "Tschuess!"
             Write-Host ""
@@ -73,14 +72,14 @@ function Start-MainMenu {
         }
 
         # Kategorien aus Eingabe ermitteln
-        $catList   = $script:Categories.GetEnumerator() | Sort-Object { $_.Value.Order }
-        $catKeys   = @($catList | ForEach-Object { $_.Key })
-        $selected  = @()
+        $catList  = $script:Categories.GetEnumerator() | Sort-Object { $_.Value.Order }
+        $catKeys  = @($catList | ForEach-Object { $_.Key })
+        $selected = @()
 
-        if ($input -eq "all") {
+        if ($userInput -eq "all") {
             $selected = $catKeys
         } else {
-            foreach ($token in ($input -split "\s+")) {
+            foreach ($token in ($userInput -split "\s+")) {
                 if ($token -match "^\d+$") {
                     $idx = [int]$token - 1
                     if ($idx -ge 0 -and $idx -lt $catKeys.Count) {
@@ -106,9 +105,9 @@ function Start-MainMenu {
         $allPkgs = @()
         foreach ($key in $selected) {
             $cat = $script:Categories[$key]
-            Write-Host ("  {0}  {1}" -f $cat.Icon, $cat.Label) -ForegroundColor Cyan
+            Write-Host ("  {0}" -f $cat.Label) -ForegroundColor Cyan
             foreach ($pkg in $cat.Packages) {
-                Write-Dim "     $($pkg.Name)"
+                Write-Dim "  $($pkg.Name)"
                 $allPkgs += $pkg
             }
             Write-Host ""
