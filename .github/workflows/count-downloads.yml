@@ -1,0 +1,42 @@
+name: Count Downloads
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # jede Stunde
+  workflow_dispatch:       # manuell ausloesbar
+
+jobs:
+  update-counter:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Count raw file requests via GitHub Traffic API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # GitHub Traffic API - Views auf setup.ps1 (Proxy fuer Downloads)
+          VIEWS=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/tammo2701/windows-install-script/traffic/views" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('count', 0))")
+
+          UNIQUES=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/tammo2701/windows-install-script/traffic/views" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('uniques', 0))")
+
+          echo "Views (14d): $VIEWS  |  Unique visitors (14d): $UNIQUES"
+
+          # In JSON speichern
+          echo "{\"views_14d\": $VIEWS, \"uniques_14d\": $UNIQUES, \"updated\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > downloads.json
+
+      - name: Commit counter update
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add downloads.json
+          git diff --cached --quiet || git commit -m "chore: update download counter [skip ci]"
+          git push
